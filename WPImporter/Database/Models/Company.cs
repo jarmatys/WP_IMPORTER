@@ -1,4 +1,4 @@
-﻿namespace WPImporter.Models
+﻿namespace WPImporter.Database.Models
 {
     public class Company
     {

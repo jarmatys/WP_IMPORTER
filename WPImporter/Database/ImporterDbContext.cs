@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using WPImporter.Models;
+using WPImporter.Database.Models;
 
 namespace WPImporter.Database
 {
