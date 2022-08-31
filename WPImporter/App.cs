@@ -1,21 +1,20 @@
-﻿using Microsoft.EntityFrameworkCore;
-using WPImporter.Database;
+﻿using WPImporter.Database;
 
 namespace WPImporter
 {
     public class App
     {
-        private readonly ImporterDbContext _context;
+        private readonly IImportedDbContext _context;
 
-        public App(ImporterDbContext context)
+        public App(IImportedDbContext context)
         {
             _context = context;
         }
 
-        public async Task StartImport()
+        public void StartApplication()
         {
             // 1. Wyciągamy rekordy z bazy danych
-            var companies = await _context.Companies.ToListAsync();
+            var companies =  _context.Companies.ToList();
 
             // 2. ...
         }

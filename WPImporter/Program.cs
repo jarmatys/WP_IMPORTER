@@ -12,18 +12,19 @@ var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").B
 var services = new ServiceCollection();
 
 // 2. Przekazuje context bazy danych do Entity Frameworka
-services.AddDbContext<ImporterDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("WPIDatabase")));
+services.AddSingleton<App>();
+
+services.AddDbContext<IImportedDbContext, ImporterDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("WPIDatabase")));
 
 // 3. Buduje "worek" zależności
 var serviceProvider = services.BuildServiceProvider();
 
 // 4. Pobieram context
-var context = serviceProvider.GetService<ImporterDbContext>();
+var app = serviceProvider.GetService<App>();
 
-// 5. Tworzę obiekt aplikacji i przkazuje context
-var app = new App(context);
-
-// 6. Uruchamiam aplikację
-app.StartImport().Wait();
+if (app != null)
+{
+    app.StartApplication();
+}
 
 Console.WriteLine("WP IMPORTER - END");
