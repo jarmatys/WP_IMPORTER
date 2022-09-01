@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using WPImporter.Common;
 using WPImporter.Database;
+using WPImporter.GoogleAPI;
 
 namespace WPImporter
 {
@@ -20,8 +21,14 @@ namespace WPImporter
             // 1. Wyciągamy rekordy z bazy danych
             var companies =  _context.Companies.ToList();
 
-            // 2. ...
-            var googleApi = _keys.GoogleApiKey;
+            // 2. Pobieranie danych z Google API   
+            var google = new Google(_keys.GoogleApiKey);
+
+            var company = "armatys.me Jarosław Armatys";
+
+            var placeId = google.GetPlaceId(company);
+            
+            var placeDetails = google.GetPlaceDetails(placeId);
         }
     }
 }
