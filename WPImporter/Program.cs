@@ -9,12 +9,16 @@ Console.WriteLine("WP IMPORTER - START");
 // 1. Pobieram appsettings
 var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 
+var connectionString = configuration.GetConnectionString("WPIDatabase");
+
 var services = new ServiceCollection();
 
 // 2. Przekazuje context bazy danych do Entity Frameworka
 services.AddSingleton<App>();
 
-services.AddDbContext<IImportedDbContext, ImporterDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("WPIDatabase")));
+services.AddDbContext<IImportedDbContext, ImporterDbContext>(options => options.UseSqlServer(connectionString));
+
+services.AddSingleton<IConfiguration>(configuration);
 
 // 3. Buduje "worek" zależności
 var serviceProvider = services.BuildServiceProvider();
