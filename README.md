@@ -1,4 +1,7 @@
-Komenda do wy³¹czenia œledzenia pliku appsettings.json
+Komenda do wyÅ‚Ä…czenia Å“ledzenia pliku appsettings.json:
+
 git update-index --assume-unchanged .\appsettings.json
-i w drug¹ stronê:
+
+i w drugÄ… stronÄ™:
+
 git update-index --no-assume-unchanged.\appsettings.json
