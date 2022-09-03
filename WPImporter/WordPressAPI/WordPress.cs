@@ -36,6 +36,28 @@ namespace WPImporter.WordPressAPI
 
             return deserializeResponse.Token;
         }
+
+        public string AddListing(Listing listing)
+        {
+            var url = $"{_baseUrl}/wp-json/wp/v2/listing";
+            
+            var client = new RestClient(url);
+
+            var request = new RestRequest
+            {
+                Method = Method.Post
+            };
+
+            request.AddHeader("Content-Type", "application/json");
+            request.AddHeader("Authorization", $"Bearer {_bearerToken}");
+            request.AddParameter("application/json", listing.ToString(), ParameterType.RequestBody);
+
+            var response = client.Execute(request);
+
+            var deserializeResponse = JsonConvert.DeserializeObject<ListingResponse>(response.Content);
+
+            return deserializeResponse.Id;
+        }
     }
 }
     

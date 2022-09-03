@@ -23,17 +23,17 @@ namespace WPImporter
 
             _keys = configuration.GetSection("Keys").Get<Keys>();
             _wpc = configuration.GetSection("WordPressConfig").Get<WordPressConfig>();
-            
+
             _google = new Google(_keys.GoogleApiKey);
             _wp = new WordPress(_wpc.Url, _wpc.UserName, _wpc.Password);
         }
+
         public void StartApplication()
         {
             // 1. Wyciągamy rekordy z bazy danych
             var companies = _context.Companies.ToList();
 
             // 2. Pobieranie danych z Google API   
-
             var company = "armatys.me Jarosław Armatys";
 
             var placeId = _google.GetPlaceId(company);
@@ -42,6 +42,13 @@ namespace WPImporter
 
             // 3. Wysyłamy dane do WordPress'a
 
+            var listing = new Listing
+            {
+                Title = placeDetails.result.name,
+                Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {placeDetails.result.name}, o ID w bazie {companies.First().Id}"
+            };
+
+            var newListingId = _wp.AddListing(listing);
         }
     }
 }
