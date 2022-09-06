@@ -56,7 +56,7 @@ namespace WPImporter.WordPressAPI
 
             var deserializeResponse = JsonConvert.DeserializeObject<ListingResponse>(response.Content);
 
-            return deserializeResponse.Id;
+            return deserializeResponse.Link;
         }
     }
 }

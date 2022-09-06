@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using WPImporter.BotWP;
 using WPImporter.Common;
 using WPImporter.Database;
 using WPImporter.GoogleAPI;
@@ -34,21 +35,27 @@ namespace WPImporter
             var companies = _context.Companies.ToList();
 
             // 2. Pobieranie danych z Google API   
-            var company = "armatys.me Jarosław Armatys";
-
-            var placeId = _google.GetPlaceId(company);
+            var placeId = _google.GetPlaceId("armatys.me Jarosław Armatys");
 
             var placeDetails = _google.GetPlaceDetails(placeId);
 
             // 3. Wysyłamy dane do WordPress'a
-
             var listing = new Listing
             {
                 Title = placeDetails.result.name,
-                Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {placeDetails.result.name}, o ID w bazie {companies.First().Id}"
+                Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {placeDetails.result.name}"
             };
 
-            var newListingId = _wp.AddListing(listing);
+            var newListingUrl = _wp.AddListing(listing);
+
+            // 4. Dodajemy opinie do WordPress'a
+            var bot = new Bot(newListingUrl);
+
+            var rating = 4;
+            var author = "Author Name";
+            var comment = "Review Text";
+
+            bot.AddComment(rating, author, comment, "armatys.me Jarosław Armatys");
         }
     }
 }
