@@ -18,6 +18,8 @@ namespace WPImporter
         private readonly Google _google;
         private readonly WordPress _wp;
 
+        private readonly int _limit = 1;
+
         public App(IImportedDbContext context, IConfiguration configuration)
         {
             _context = context;
@@ -34,28 +36,51 @@ namespace WPImporter
             // 1. Wyciągamy rekordy z bazy danych
             var companies = _context.Companies.ToList();
 
-            // 2. Pobieranie danych z Google API   
-            var placeId = _google.GetPlaceId("armatys.me Jarosław Armatys");
+            var iteration = 0;
 
-            var placeDetails = _google.GetPlaceDetails(placeId);
-
-            // 3. Wysyłamy dane do WordPress'a
-            var listing = new Listing
+            foreach (var company in companies)
             {
-                Title = placeDetails.result.name,
-                Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {placeDetails.result.name}"
-            };
+                Console.WriteLine($"1. Rozpoczynam procesować firmę o ID {company.Id}");
 
-            var newListingUrl = _wp.AddListing(listing);
+                // 2. Pobieranie danych z Google API   
+                var placeId = _google.GetPlaceId(company.Name);
 
-            // 4. Dodajemy opinie do WordPress'a
-            var bot = new Bot(newListingUrl);
+                var placeDetails = _google.GetPlaceDetails(placeId);
 
-            var rating = 4;
-            var author = "Author Name";
-            var comment = "Review Text";
+                Console.WriteLine($"2. Pobrałem dane z Google API | Place ID {placeId}");
 
-            bot.AddComment(rating, author, comment, "armatys.me Jarosław Armatys");
+                // 3. Wysyłamy dane do WordPress'a
+                var listing = new Listing
+                {
+                    Title = placeDetails.result.name,
+                    Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {placeDetails.result.name}"
+                };
+
+                var newListingUrl = _wp.AddListing(listing);
+
+                Console.WriteLine($"3. Dodałem firmę przez WP API | URL {newListingUrl}");
+
+                // 4. Dodajemy opinie do WordPress'a
+                var bot = new Bot(newListingUrl);
+
+                foreach (var review in placeDetails.result.reviews)
+                {
+                    var rating = Convert.ToInt64(Math.Floor(Convert.ToDouble(review.rating)));
+                    var author = review.author_name;
+                    var comment = review.text;
+
+                    bot.AddComment(rating, author, comment, company.Name);
+                }
+
+                Console.WriteLine($"4. Dodałem {placeDetails.result.reviews.Count} komentarzy");
+
+                iteration += 1;
+
+                if (iteration == _limit)
+                {
+                    break;
+                }
+            }
         }
     }
 }

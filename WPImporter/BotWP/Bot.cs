@@ -24,7 +24,7 @@ namespace WPImporter.BotWP
         {
             var options = new ChromeOptions();
 
-            // options.AddArgument("--headless");            
+            options.AddArgument("--headless");            
 
             using var driver = new ChromeDriver(options);
 
