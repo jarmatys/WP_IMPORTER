@@ -24,7 +24,8 @@ namespace WPImporter.BotWP
         {
             var options = new ChromeOptions();
 
-            options.AddArgument("--headless");            
+            options.AddArgument("--headless");  
+            options.AddArgument("log-level=3");            
 
             using var driver = new ChromeDriver(options);
 
