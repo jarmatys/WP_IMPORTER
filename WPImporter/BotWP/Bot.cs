@@ -44,10 +44,13 @@ namespace WPImporter.BotWP
                 var ratingElement = driver.FindElement(By.CssSelector($"label[for='{category}-{rating}']"));
                 ratingElement.Click();
             }
-
-            Thread.Sleep(3000);
+            
+            Thread.Sleep(2000);
 
             driver.FindElement(By.Id("submit")).Click();
+
+            // Aby WordPress nie wykrył "ataku" czyli zbyt dużej ilości requestów na końcu czekamy 10 sekund
+            Thread.Sleep(10000);
         }
     }
 }

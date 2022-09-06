@@ -70,6 +70,8 @@ namespace WPImporter
                     var comment = review.text;
 
                     bot.AddComment(rating, author, comment, company.Name);
+
+                    Console.WriteLine($"Dodałem komentarz autora: {author} dla firmy ID: {company.Id}");
                 }
 
                 Console.WriteLine($"4. Dodałem {placeDetails.result.reviews.Count} komentarzy");
