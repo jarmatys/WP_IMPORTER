@@ -1,5 +1,7 @@
 ﻿using Newtonsoft.Json;
+using System.Linq;
 using WPImporter.GoogleAPI.Models;
+using WPImporter.GoogleAPI.Models.Common;
 
 namespace WPImporter.GoogleAPI
 {
@@ -12,16 +14,45 @@ namespace WPImporter.GoogleAPI
         {
             API_KEY = apiKey;
         }
-        
-        public string GetPlaceId(string searchQuery)
+
+        public string? GetPlaceIdBasic(PlaceSearch placeSearch)
         {
-            string url = BASE_URL + "textsearch/json?query=" + searchQuery + "&key=" + API_KEY;
-            
+            string url = BASE_URL + "textsearch/json?query=" + placeSearch.GetSearchQuery() + "&language=pl&type=establishment&key=" + API_KEY;
+
             var response = GetResponse(url);
-            
+
             var placeBasic = JsonConvert.DeserializeObject<Place>(response);
 
-            return placeBasic.results[0].place_id;
+            if (placeBasic?.status == "OK")
+            {
+                return placeBasic.results[0].place_id;
+            }
+
+            return null;
+        }
+
+        public string? GetPlaceIdAdvanced(PlaceSearch placeSearch)
+        {
+            string url = BASE_URL + "textsearch/json?query=" + placeSearch.GetSearchQuery() + "&language=pl&type=establishment&key=" + API_KEY;
+
+            var response = GetResponse(url);
+
+            var placeBasic = JsonConvert.DeserializeObject<Place>(response);
+
+            if (placeBasic?.status == "OK")
+            {
+                var matchedPlace = GetMostMatchedPlace(placeBasic.results, placeSearch);
+
+                // TODO: Jeżeli mamy 100% ale w nazwie nic się nie zgadza, to dostrzał do REJESTR.io i sprawdzamy czy spółka nie jest na adresie wirtualnym
+                // w przypadku JDG sprawdzamy unikalność adresu we własnej bazie danych
+
+                if (matchedPlace != null)
+                {
+                    return matchedPlace.place_id;
+                }
+            }
+
+            return null;
         }
 
         public PlaceDetails GetPlaceDetails(string placeId)
@@ -31,17 +62,63 @@ namespace WPImporter.GoogleAPI
             var response = GetResponse(url);
 
             var placeDetails = JsonConvert.DeserializeObject<PlaceDetails>(response);
-            
+
             return placeDetails;
         }
 
         private static string GetResponse(string url)
         {
             using var client = new HttpClient();
-            
+
             var response = client.GetAsync(url).Result;
-            
+
             return response.Content.ReadAsStringAsync().Result;
+        }
+
+        private static Result GetMostMatchedPlace(List<Result> results, PlaceSearch placeSearch)
+        {
+            var posibilites = new Dictionary<Result, int>();
+
+            foreach (var result in results)
+            {
+                var probability = CalculateProbability(result, placeSearch);
+
+                posibilites.Add(result, probability);
+            }
+
+            var resultPlace = posibilites.Where(x => x.Value == 100).OrderByDescending(x => x.Value).FirstOrDefault().Key;
+
+            // TODO: zapisywać wynik do bazy danych
+
+            return resultPlace;
+        }
+
+        private static int CalculateProbability(Result result, PlaceSearch placeSearch)
+        {
+            var isEstablishment = result.types.Contains("establishment");
+            if (!isEstablishment) return 0;
+
+            var isCorrectName = result.name.ToLower().Contains(placeSearch.Name);
+            if (isCorrectName) return 100;
+
+            var propabilty = 0;
+
+            var isCorrectCity = result.formatted_address.ToLower().Contains(placeSearch.City);
+            if (isCorrectCity) propabilty += 20;
+
+            var isCorrectStreet = !string.IsNullOrEmpty(placeSearch.Street) && result.formatted_address.ToLower().Contains(placeSearch.Street);
+            if (isCorrectStreet) propabilty += 30;
+            if (string.IsNullOrEmpty(placeSearch.Street)) propabilty += 5;
+
+            var isCorrectNumber = !string.IsNullOrEmpty(placeSearch.BuildingNumber) && result.formatted_address.ToLower().Contains(placeSearch.BuildingNumber);
+            if (isCorrectNumber) propabilty += 10;
+            if (string.IsNullOrEmpty(placeSearch.BuildingNumber)) propabilty += 5;
+
+            var isCorrectPostalCode = !string.IsNullOrEmpty(placeSearch.PostalCode) && result.formatted_address.ToLower().Contains(placeSearch.PostalCode);
+            if (isCorrectPostalCode) propabilty += 40;
+            if (string.IsNullOrEmpty(placeSearch.PostalCode)) propabilty += 5;
+
+            return propabilty;
         }
     }
 }
