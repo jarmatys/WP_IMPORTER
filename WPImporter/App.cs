@@ -5,6 +5,7 @@ using WPImporter.Database;
 using WPImporter.GoogleAPI;
 using WPImporter.GoogleAPI.Models.Common;
 using WPImporter.WordPressAPI;
+using WPImporter.WordPressAPI.Helpers;
 using WPImporter.WordPressAPI.Models;
 
 namespace WPImporter
@@ -29,13 +30,13 @@ namespace WPImporter
             _wpc = configuration.GetSection("WordPressConfig").Get<WordPressConfig>();
 
             _google = new Google(_keys.GoogleApiKey);
-            _wp = new WordPress(_wpc.Url, _wpc.UserName, _wpc.Password);
+            _wp = new WordPress(_wpc);
         }
 
         public void StartApplication()
         {
             // 1. Wyciągamy rekordy z bazy danych
-            var companies = _context.Companies.Skip(10).Take(_limit).ToList();
+            var companies = _context.Companies.Skip(2).Take(_limit).ToList();
 
             var iteration = 0;
 
@@ -55,29 +56,45 @@ namespace WPImporter
                 // 3. Wysyłamy dane do WordPress'a
                 var listing = new Listing
                 {
-                    Title = placeDetails.result.name,
-                    Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {placeDetails.result.name}"
+                    Title = $"{company.Name}",
+                    Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {company.Name}",
+                    ListingCategory = 65, // TODO: Dynamiczne ustawienie kategorii
+                    ListingFeature = new List<int> { 62, 64 },
+                    Region = 36 // TODO: Dynamiczne ustawianie regionu
                 };
 
-                var newListingUrl = _wp.AddListing(listing);
+                var newListing = _wp.AddListing(listing);
 
-                Console.WriteLine($"Dodałem firmę przez WP API | URL {newListingUrl}");
+                Console.WriteLine($"Dodałem firmę przez WP API | URL {newListing.Link}");
+
+                var listingMetaDate = WordPressHelper.CreateListingMetaData(company, placeDetails, placeId);
+
+                _wp.AddMetaDatas(newListing.Id, listingMetaDate);
+
+                Console.WriteLine($"Dodałem meta dane do ogłoszenia | ID {newListing.Id}");
 
                 // 4. Dodajemy opinie do WordPress'a
-                var bot = new Bot(newListingUrl);
+                var bot = new Bot(newListing.Link);
 
-                foreach (var review in placeDetails.result.reviews)
+                if (placeDetails != null && placeDetails.result.reviews != null)
                 {
-                    var rating = Convert.ToInt64(Math.Floor(Convert.ToDouble(review.rating)));
-                    var author = review.author_name;
-                    var comment = review.text;
+                    foreach (var review in placeDetails.result.reviews)
+                    {
+                        var rating = Convert.ToInt64(Math.Floor(Convert.ToDouble(review.rating)));
+                        var author = review.author_name;
+                        var comment = review.text;
 
-                    bot.AddComment(rating, author, comment, company.Name);
+                        bot.AddComment(rating, author, comment, company.Name);
 
-                    Console.WriteLine($"Dodałem komentarz autora: {author} dla firmy ID: {company.Id}");
+                        Console.WriteLine($"Dodałem komentarz autora: {author} dla firmy ID: {company.Id}");
+                    }
+
+                    Console.WriteLine($"Dodałem {placeDetails.result.reviews.Count} komentarzy");
                 }
-
-                Console.WriteLine($"Dodałem {placeDetails.result.reviews.Count} komentarzy");
+                else
+                {
+                    Console.WriteLine($"Brak komentarzy");
+                }
 
                 iteration += 1;
             }
