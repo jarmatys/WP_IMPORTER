@@ -3,6 +3,7 @@ using WPImporter.BotWP;
 using WPImporter.Common;
 using WPImporter.Database;
 using WPImporter.GoogleAPI;
+using WPImporter.GoogleAPI.Models.Common;
 using WPImporter.WordPressAPI;
 using WPImporter.WordPressAPI.Models;
 
@@ -18,7 +19,7 @@ namespace WPImporter
         private readonly Google _google;
         private readonly WordPress _wp;
 
-        private readonly int _limit = 1;
+        private readonly int _limit = 10;
 
         public App(IImportedDbContext context, IConfiguration configuration)
         {
@@ -34,20 +35,22 @@ namespace WPImporter
         public void StartApplication()
         {
             // 1. Wyciągamy rekordy z bazy danych
-            var companies = _context.Companies.ToList();
+            var companies = _context.Companies.Skip(10).Take(_limit).ToList();
 
             var iteration = 0;
 
             foreach (var company in companies)
             {
-                Console.WriteLine($"1. Rozpoczynam procesować firmę o ID {company.Id}");
+                Console.WriteLine($"{iteration} | {company.Name}");
 
                 // 2. Pobieranie danych z Google API   
-                var placeId = _google.GetPlaceId(company.Name);
+                var placeSearch = new PlaceSearch(company.Name, company.City, company.Street, company.BuildingNumber, company.FlatNumber, company.PostalCode);
 
-                var placeDetails = _google.GetPlaceDetails(placeId);
+                var placeId = _google.GetPlaceIdAdvanced(placeSearch);
 
-                Console.WriteLine($"2. Pobrałem dane z Google API | Place ID {placeId}");
+                var placeDetails = placeId != null ? _google.GetPlaceDetails(placeId) : null;
+
+                Console.WriteLine($"Pobrałem dane z Google API | Place ID: {placeId != null} | Place Details: {placeDetails != null}");
 
                 // 3. Wysyłamy dane do WordPress'a
                 var listing = new Listing
@@ -58,7 +61,7 @@ namespace WPImporter
 
                 var newListingUrl = _wp.AddListing(listing);
 
-                Console.WriteLine($"3. Dodałem firmę przez WP API | URL {newListingUrl}");
+                Console.WriteLine($"Dodałem firmę przez WP API | URL {newListingUrl}");
 
                 // 4. Dodajemy opinie do WordPress'a
                 var bot = new Bot(newListingUrl);
@@ -74,14 +77,9 @@ namespace WPImporter
                     Console.WriteLine($"Dodałem komentarz autora: {author} dla firmy ID: {company.Id}");
                 }
 
-                Console.WriteLine($"4. Dodałem {placeDetails.result.reviews.Count} komentarzy");
+                Console.WriteLine($"Dodałem {placeDetails.result.reviews.Count} komentarzy");
 
                 iteration += 1;
-
-                if (iteration == _limit)
-                {
-                    break;
-                }
             }
         }
     }
