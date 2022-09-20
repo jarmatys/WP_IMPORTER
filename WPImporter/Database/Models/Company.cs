@@ -15,7 +15,6 @@
         public string BuildingNumber { get; set; }
         public string? FlatNumber { get; set; }
         public string? MainPkd { get; set; }
-        public string Status { get; set; }
         public string? PhoneNumber { get; set; }
         public string? Email { get; set; }
         public string? WebsiteUrl { get; set; }
@@ -24,7 +23,12 @@
         public DateTime? EndDate { get; set; }
 
         public int LegalFormId { get; set; }
+        public LegalForm LegalForm { get; set; }
+        
         public int ClassificationSchemaId { get; set; }
+        public ClassificationSchema ClassificationSchema { get; set; }
+        
         public int VoivodeshipId { get; set; }
+        public Voivodeship Voivodeship { get; set; }
     }
 }

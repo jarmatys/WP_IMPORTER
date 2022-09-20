@@ -81,7 +81,7 @@ namespace WPImporter.WordPressAPI
             connection.Close();
         }
 
-        private void ExecuteSqlQuery(MySqlConnection connection, string listingId, string metaIdentifier, string metaValue)
+        private static void ExecuteSqlQuery(MySqlConnection connection, string listingId, string metaIdentifier, string? metaValue)
         {
             var sqlCommand = "INSERT INTO `wp_postmeta` (`post_id`, `meta_key`, `meta_value`) VALUES (@post_id, @meta_key, @meta_value)";
 

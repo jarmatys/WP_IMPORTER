@@ -8,27 +8,83 @@ namespace WPImporter.WordPressAPI.Helpers
 {
     public static class WordPressHelper
     {
+        public static int GetRegionId(int voivodeshipId)
+        {
+            // FIRST INT - RegionId from WordPress
+            // SECOND INT - VoivodeshipId from DataBase
+
+            var regionIds = new Dictionary<int, int>
+            {
+                { 1, 0 }, // ERROR województwa
+                { 2, 36 },
+                { 3, 32 },
+                { 4, 73 },
+                { 5, 70 },
+                { 6, 71 },
+                { 7, 74 },
+                { 8, 75 },
+                { 9, 76 },
+                { 10, 77 },
+                { 11, 78 },
+                { 12, 79 },
+                { 13, 80 },
+                { 14, 81 },
+                { 15, 82 },
+                { 16, 83 },
+                { 17, 84 },
+                { 18, 0 } // BRAK znalezionego województwa
+            };
+
+            return regionIds[voivodeshipId];
+        }
+
         public static ListingMetaData CreateListingMetaData(Company company, PlaceDetails? placeDetails, string? placeId)
         {
             var metaDatas = new List<MetaData>();
 
             // 1. Dane z bazy danych
             var startDate = company.StartDate.ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
-            
+
             metaDatas.AddMetaData(new MetaData(company.Nip, "_nip"));
             metaDatas.AddMetaData(new MetaData(company.Krs, "_krs"));
             metaDatas.AddMetaData(new MetaData(company.City, "_miasto"));
             metaDatas.AddMetaData(new MetaData(company.Street, "_ulica"));
             metaDatas.AddMetaData(new MetaData(company.BuildingNumber, "_numer_budynku"));
             metaDatas.AddMetaData(new MetaData(company.FlatNumber, "_numer_mieszkania"));
-            metaDatas.AddMetaData(new MetaData(company.District, "_wojewodztwo"));
+            metaDatas.AddMetaData(new MetaData(company.Voivodeship.Name, "_wojewodztwo"));
             metaDatas.AddMetaData(new MetaData(company.MainPkd, "_gowny_pkd"));
-            metaDatas.AddMetaData(new MetaData("SPZOO", "_forma_prawna")); // TODO: zrobić przekazywanie formy prawnej
-            metaDatas.AddMetaData(new MetaData("Oprogramowanie", "_brana")); // TODO: zrobić przekazywanie branży
+            metaDatas.AddMetaData(new MetaData(company.LegalForm.Shortcut, "_forma_prawna"));
+            metaDatas.AddMetaData(new MetaData(company.ClassificationSchema.DisplayName, "_brana"));
             metaDatas.AddMetaData(new MetaData(startDate, "_start_dzialalnosci"));
             metaDatas.AddMetaData(new MetaData(company.PostalCode, "_kod_pocztowy"));
             metaDatas.AddMetaData(new MetaData($"Sprawdzona firma z branży fotowoltaicznej {company.Name.ToLower()}", "keywords"));
-            metaDatas.AddMetaData(new MetaData(company.Email?.ToLower(), "_email"));
+
+            if (company.Email != null)
+            {
+                metaDatas.AddMetaData(new MetaData(company.Email.ToLower(), "_email"));
+            }
+            else
+            {
+                metaDatas.AddMetaData(new MetaData("firma@sprawdzonafotowoltaika.pl", "_email"));
+            }
+
+            if (placeDetails != null && placeDetails.result.formatted_address != null)
+            {
+                metaDatas.AddMetaData(new MetaData(placeDetails.result.formatted_phone_number, "_phone"));
+            }
+            else
+            {
+                metaDatas.AddMetaData(new MetaData(company.PhoneNumber, "_phone"));
+            }
+
+            if (placeDetails != null && placeDetails.result.website != null)
+            {
+                metaDatas.AddMetaData(new MetaData(placeDetails.result.website, "_website"));
+            }
+            else
+            {
+                metaDatas.AddMetaData(new MetaData(company.WebsiteUrl, "_website"));
+            }
 
             // 2. Dane z Google API
             metaDatas.AddMetaData(new MetaData(placeId, "_place_id"));
@@ -39,8 +95,6 @@ namespace WPImporter.WordPressAPI.Helpers
                 metaDatas.AddMetaData(new MetaData(placeDetails.result.vicinity, "_friendly_address"));
                 metaDatas.AddMetaData(new MetaData(placeDetails.result.geometry.location.lng.ToString(), "_geolocation_long"));
                 metaDatas.AddMetaData(new MetaData(placeDetails.result.geometry.location.lat.ToString(), "_geolocation_lat"));
-                metaDatas.AddMetaData(new MetaData(placeDetails.result.formatted_phone_number, "_phone"));
-                metaDatas.AddMetaData(new MetaData(placeDetails.result.website, "_website"));
 
                 var openingHours = placeDetails.result.opening_hours;
                 if (openingHours != null)
@@ -104,17 +158,26 @@ namespace WPImporter.WordPressAPI.Helpers
             return listingMetaDate;
         }
 
+        public static string CreateCompanyDescription(Company company)
+        {
+            return $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta " +
+                $"nazwa firmy np: {company.Name}, " +
+                $"o formie prawnej {company.LegalForm.Name}, " +
+                $"z branży {company.ClassificationSchema.Name.ToLower()}";
+        }
+
         private static List<MetaData> ConvertPeriodToWordPressFormat(Period period)
         {
-            var mapingData = new Dictionary<int, string>();
-
-            mapingData[1] = "monday";
-            mapingData[2] = "tuesday";
-            mapingData[3] = "wednesday";
-            mapingData[4] = "thursday";
-            mapingData[5] = "friday";
-            mapingData[6] = "saturday";
-            mapingData[7] = "sunday";
+            var mapingData = new Dictionary<int, string>
+            {
+                { 1, "monday" },
+                { 2, "tuesday" },
+                { 3, "wednesday" },
+                { 4, "thursday" },
+                { 5, "friday" },
+                { 6, "saturday" },
+                { 7, "sunday" }
+            };
 
             var day = mapingData[period.open.day];
 
