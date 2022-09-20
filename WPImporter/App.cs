@@ -21,7 +21,7 @@ namespace WPImporter
         private readonly Google _google;
         private readonly WordPress _wp;
 
-        private readonly int _limit = 1;
+        private readonly int _limit = 100;
         private readonly string MAIN_PKD = "4321Z"; // GŁÓWNY KOD PKD FOTOWOLTAIKI
 
         public App(IImportedDbContext context, IConfiguration configuration)
@@ -95,8 +95,6 @@ namespace WPImporter
                         var comment = review.text;
 
                         bot.AddComment(rating, author, comment, company.Name);
-
-                        Console.WriteLine($"Dodałem komentarz autora: {author} dla firmy ID: {company.Id}");
                     }
 
                     Console.WriteLine($"Dodałem {placeDetails.result.reviews.Count} komentarzy");
