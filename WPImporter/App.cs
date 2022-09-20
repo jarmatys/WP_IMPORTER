@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using WPImporter.BotWP;
 using WPImporter.Common;
 using WPImporter.Database;
@@ -20,7 +21,8 @@ namespace WPImporter
         private readonly Google _google;
         private readonly WordPress _wp;
 
-        private readonly int _limit = 10;
+        private readonly int _limit = 1;
+        private readonly string MAIN_PKD = "4321Z"; // GŁÓWNY KOD PKD FOTOWOLTAIKI
 
         public App(IImportedDbContext context, IConfiguration configuration)
         {
@@ -36,7 +38,15 @@ namespace WPImporter
         public void StartApplication()
         {
             // 1. Wyciągamy rekordy z bazy danych
-            var companies = _context.Companies.Skip(2).Take(_limit).ToList();
+            var companies = _context
+                .Companies
+                .Include(c => c.ClassificationSchema)
+                .Include(c => c.Voivodeship)
+                .Include(c => c.LegalForm)
+                .Where(c => c.MainPkd == MAIN_PKD && c.Name.ToLower().Contains("foto"))
+                .Skip(0)
+                .Take(_limit)
+                .ToList();
 
             var iteration = 0;
 
@@ -57,10 +67,10 @@ namespace WPImporter
                 var listing = new Listing
                 {
                     Title = $"{company.Name}",
-                    Content = $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta nazwa firmy np: {company.Name}",
-                    ListingCategory = 65, // TODO: Dynamiczne ustawienie kategorii
+                    Content = WordPressHelper.CreateCompanyDescription(company),
+                    ListingCategory = 33, // TODO: Dynamiczne ustawienie kategorii
                     ListingFeature = new List<int> { 62, 64 },
-                    Region = 36 // TODO: Dynamiczne ustawianie regionu
+                    Region = WordPressHelper.GetRegionId(company.VoivodeshipId), 
                 };
 
                 var newListing = _wp.AddListing(listing);
@@ -81,7 +91,7 @@ namespace WPImporter
                     foreach (var review in placeDetails.result.reviews)
                     {
                         var rating = Convert.ToInt64(Math.Floor(Convert.ToDouble(review.rating)));
-                        var author = review.author_name;
+                        var author = review.author_name; // TODO: zrobić anonimizację
                         var comment = review.text;
 
                         bot.AddComment(rating, author, comment, company.Name);

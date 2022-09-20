@@ -22,6 +22,7 @@ namespace WPImporter.BotWP
 
         public void AddComment(long rating, string author, string comment, string companyName)
         {
+            // TODO: w try catcha to zapakować
             var options = new ChromeOptions();
 
             options.AddArgument("--headless");  

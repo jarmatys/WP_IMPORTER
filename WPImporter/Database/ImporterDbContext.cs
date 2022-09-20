@@ -10,5 +10,8 @@ namespace WPImporter.Database
         }
         
         public DbSet<Company> Companies { get; set; }
+        public DbSet<LegalForm> LegalForms { get; set; }
+        public DbSet<Voivodeship> Voivodeships { get; set; }
+        public DbSet<ClassificationSchema> ClassificationSchemas { get; set; }
     }
 }
