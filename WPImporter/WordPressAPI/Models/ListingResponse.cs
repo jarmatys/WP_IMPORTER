@@ -2,7 +2,7 @@
 {
     public class ListingResponse
     {
-        public string Id { get; set; }
+        public int Id { get; set; }
         public DateTime Date { get; set; }
         public DateTime Date_gmt { get; set; }
         public Type Guid { get; set; }
