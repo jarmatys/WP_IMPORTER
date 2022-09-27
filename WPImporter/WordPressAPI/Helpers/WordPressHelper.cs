@@ -38,7 +38,49 @@ namespace WPImporter.WordPressAPI.Helpers
             return regionIds[voivodeshipId];
         }
 
-        public static ListingMetaData CreateListingMetaData(Company company, PlaceDetails? placeDetails, string? placeId)
+        public static List<int> GetListingCategoryIds(Company company, PlaceDetails? placeDetails)
+        {
+            var categoryIds = new List<int>();
+
+            // 2. Z stroną WWW
+            if (!string.IsNullOrEmpty(company.WebsiteUrl))
+            {
+                categoryIds.Add(67);
+            }
+
+            // 3. Długo na rynku
+            if (company.StartDate.Year < 2015)
+            {
+                categoryIds.Add(65);
+            }
+
+            // 5. Krótko na rynku
+            if (company.StartDate.Year >= 2021)
+            {
+                categoryIds.Add(66);
+            }
+
+            if (placeDetails != null)
+            {
+                // 1. Wysoko oceniane
+                if (placeDetails.result.rating >= 4.5)
+                    categoryIds.Add(33);
+
+                // 2. Z stroną WWW
+                if (placeDetails.result.website != null && !categoryIds.Contains(67))
+                {
+                    categoryIds.Add(67);
+                }
+
+                // 4. Pełne dane kontaktowe
+                if (placeDetails.result.formatted_phone_number != null && company.Email != null)
+                    categoryIds.Add(68);
+            }
+
+            return categoryIds;
+        }
+
+        public static ListingMetaData CreateListingMetaData(Company company, PlaceDetails? placeDetails, string? placeId, Geometry geometry)
         {
             var metaDatas = new List<MetaData>();
 
@@ -86,13 +128,37 @@ namespace WPImporter.WordPressAPI.Helpers
                 metaDatas.AddMetaData(new MetaData(company.WebsiteUrl, "_website"));
             }
 
+            var gusAddress = $"{company.City}, {company.Street} {company.BuildingNumber}";
+
+            if (placeDetails != null && placeDetails.result.vicinity != null)
+            {
+                metaDatas.AddMetaData(new MetaData(placeDetails.result.vicinity, "_friendly_address"));
+            }
+            else
+            {
+                metaDatas.AddMetaData(new MetaData(gusAddress, "_friendly_address"));
+            }
+
+            if (placeDetails != null && placeDetails.result.formatted_address != null)
+            {
+                metaDatas.AddMetaData(new MetaData(placeDetails.result.formatted_address, "_address"));
+            }
+            else
+            {
+                metaDatas.AddMetaData(new MetaData(gusAddress, "_address"));
+            }
+
+            if (placeDetails == null && geometry != null)
+            {
+                metaDatas.AddMetaData(new MetaData(geometry.location.lng.ToString(), "_geolocation_long"));
+                metaDatas.AddMetaData(new MetaData(geometry.location.lat.ToString(), "_geolocation_lat"));
+            }
+
             // 2. Dane z Google API
             metaDatas.AddMetaData(new MetaData(placeId, "_place_id"));
 
             if (placeDetails != null)
             {
-                metaDatas.AddMetaData(new MetaData(placeDetails.result.formatted_address, "_address"));
-                metaDatas.AddMetaData(new MetaData(placeDetails.result.vicinity, "_friendly_address"));
                 metaDatas.AddMetaData(new MetaData(placeDetails.result.geometry.location.lng.ToString(), "_geolocation_long"));
                 metaDatas.AddMetaData(new MetaData(placeDetails.result.geometry.location.lat.ToString(), "_geolocation_lat"));
 
@@ -158,12 +224,78 @@ namespace WPImporter.WordPressAPI.Helpers
             return listingMetaDate;
         }
 
-        public static string CreateCompanyDescription(Company company)
+        public static string CreateCompanyDescription(Company company, PlaceDetails? placeDetails)
         {
-            return $"Opis przygotowany pod SEO z dynamicznami wstawkami jak ta " +
-                $"nazwa firmy np: {company.Name}, " +
-                $"o formie prawnej {company.LegalForm.Name}, " +
-                $"z branży {company.ClassificationSchema.Name.ToLower()}";
+            var result = $"Firma <strong>{company.Name}</strong> to rzetelna firma w branży fotowoltaicznej, dostarczająca wysokiej jakości produkty " +
+              $"i usługi. Firma posiada szeroki asortyment produktów, w tym panele słoneczne, falowniki i akumulatory, " +
+              $"a także oferuje kompleksowy pakiet usług, od montażu po serwis.</br></br> <strong>{company.Name}</strong> to firma o ugruntowanej " +
+              $"pozycji na rynku, z wieloletnim doświadczeniem w branży fotowoltaicznej, będąca zaufanym partnerem " +
+              $"zarówno dla klientów indywidualnych, jak i komercyjnych. </br></br>" +
+              $"Siedziba firmy <strong>{company.Name}</strong> znajduje się w mieście <strong>{company.City}</strong> przy ulicy <strong>{company.Street}</strong>.";
+
+            var phoneNumber = "";
+
+            if (company.PhoneNumber != null)
+            {
+                phoneNumber = company.PhoneNumber;
+            }
+            else if (placeDetails != null && placeDetails.result.formatted_phone_number != null)
+            {
+                phoneNumber = placeDetails.result.formatted_phone_number;
+            }
+
+            if (!string.IsNullOrEmpty(phoneNumber))
+            {
+                result += $"</br>Z firmą można skontaktować się poprzez numer kontaktowy: <strong>{phoneNumber}</strong>";
+            }
+
+            if (company.Email != null)
+            {
+                result += $"</br></br>Firma jest dostępna pod adresem e-mailowym: <strong>{company.Email}</strong>";
+            }
+
+            result += $"</br></br>Firma świadczy usługi na terenie całej Polski i jest jedną z najbardziej cenionych firm w branży fotowoltaicznej.";
+
+            var website = "";
+
+            if (company.WebsiteUrl != null)
+            {
+                website = company.WebsiteUrl;
+            }
+            else if (placeDetails != null && placeDetails.result.website != null)
+            {
+                website = placeDetails.result.website;
+            }
+
+            if (!string.IsNullOrEmpty(website))
+            {
+                result += $"</br>Zapraszamy na stronę internetową <strong>{website}</strong> firmy gdzie można uzyskać dodatkowe informacje.";
+            }
+
+            return result;
+        }
+
+        public static int CalculateRating(int googleRating)
+        {
+            return Convert.ToInt32(Math.Floor(Convert.ToDouble(googleRating)));
+        }
+
+        public static string AnonimizeCommentAuthor(string author)
+        {
+            {
+                var result = author;
+
+                if (author.Contains(" "))
+                {
+                    var authorSplitted = author.Split(" ");
+                    var firstPart = authorSplitted[0];
+                    var lastPart = authorSplitted[authorSplitted.Length - 1];
+
+                    result = $"{firstPart} {lastPart.Substring(0, 1)}.";
+                }
+
+                return result;
+            }
         }
 
         private static List<MetaData> ConvertPeriodToWordPressFormat(Period period)

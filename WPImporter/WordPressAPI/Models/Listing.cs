@@ -14,7 +14,7 @@ namespace WPImporter.WordPressAPI.Models
         public string Status { get; } = "publish";
 
         [JsonProperty("listing_category")]
-        public int ListingCategory { get; set; }
+        public List<int> ListingCategory { get; set; }
 
         [JsonProperty("listing_feature")]
         public List<int> ListingFeature { get; set; }

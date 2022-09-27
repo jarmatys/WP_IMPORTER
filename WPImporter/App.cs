@@ -21,7 +21,7 @@ namespace WPImporter
         private readonly Google _google;
         private readonly WordPress _wp;
 
-        private readonly int _limit = 100;
+        private readonly int _limit = 400;
         private readonly string MAIN_PKD = "4321Z"; // GŁÓWNY KOD PKD FOTOWOLTAIKI
 
         public App(IImportedDbContext context, IConfiguration configuration)
@@ -48,64 +48,78 @@ namespace WPImporter
                 .Take(_limit)
                 .ToList();
 
-            var iteration = 0;
+            var added = 0;
+            var skiped = 0;
 
             foreach (var company in companies)
             {
-                Console.WriteLine($"{iteration} | {company.Name}");
-
-                // 2. Pobieranie danych z Google API   
-                var placeSearch = new PlaceSearch(company.Name, company.City, company.Street, company.BuildingNumber, company.FlatNumber, company.PostalCode);
-
-                var placeId = _google.GetPlaceIdAdvanced(placeSearch);
-
-                var placeDetails = placeId != null ? _google.GetPlaceDetails(placeId) : null;
-
-                Console.WriteLine($"Pobrałem dane z Google API | Place ID: {placeId != null} | Place Details: {placeDetails != null}");
-
-                // 3. Wysyłamy dane do WordPress'a
-                var listing = new Listing
+                try
                 {
-                    Title = $"{company.Name}",
-                    Content = WordPressHelper.CreateCompanyDescription(company),
-                    ListingCategory = 33, // TODO: Dynamiczne ustawienie kategorii
-                    ListingFeature = new List<int> { 62, 64 },
-                    Region = WordPressHelper.GetRegionId(company.VoivodeshipId), 
-                };
+                    Console.WriteLine($"{added + skiped} | {company.Name}");
 
-                var newListing = _wp.AddListing(listing);
+                    // 2. Pobieranie danych z Google API   
+                    var placeSearch = new PlaceSearch(company.Name, company.City, company.Street, company.BuildingNumber, company.FlatNumber, company.PostalCode);
 
-                Console.WriteLine($"Dodałem firmę przez WP API | URL {newListing.Link}");
+                    var placeId = _google.GetPlaceIdAdvanced(placeSearch);
 
-                var listingMetaDate = WordPressHelper.CreateListingMetaData(company, placeDetails, placeId);
+                    var placeDetails = placeId != null ? _google.GetPlaceDetails(placeId) : null;
 
-                _wp.AddMetaDatas(newListing.Id, listingMetaDate);
+                    var geometry = placeId == null ? _google.GetPlaceCordinates(placeSearch) : null;
 
-                Console.WriteLine($"Dodałem meta dane do ogłoszenia | ID {newListing.Id}");
+                    Console.WriteLine($"Pobrałem dane z Google API | Place ID: {placeId != null} | Place Details: {placeDetails != null}");
 
-                // 4. Dodajemy opinie do WordPress'a
-                var bot = new Bot(newListing.Link);
-
-                if (placeDetails != null && placeDetails.result.reviews != null)
-                {
-                    foreach (var review in placeDetails.result.reviews)
+                    // 3. Wysyłamy dane do WordPress'a
+                    var listing = new Listing
                     {
-                        var rating = Convert.ToInt64(Math.Floor(Convert.ToDouble(review.rating)));
-                        var author = review.author_name; // TODO: zrobić anonimizację
-                        var comment = review.text;
+                        Title = $"{company.Name}",
+                        Content = WordPressHelper.CreateCompanyDescription(company, placeDetails),
+                        ListingCategory = WordPressHelper.GetListingCategoryIds(company, placeDetails),
+                        ListingFeature = new List<int> { 62, 64, 63, 61 },
+                        Region = WordPressHelper.GetRegionId(company.VoivodeshipId),
+                    };
 
-                        bot.AddComment(rating, author, comment, company.Name);
+                    var newListing = _wp.AddListing(listing);
+
+                    Console.WriteLine($"Dodałem firmę przez WP API | URL {newListing.Link}");
+
+                    var listingMetaDate = WordPressHelper.CreateListingMetaData(company, placeDetails, placeId, geometry);
+
+                    _wp.AddMetaDatas(newListing.Id, listingMetaDate);
+
+                    Console.WriteLine($"Dodałem meta dane do ogłoszenia | ID {newListing.Id}");
+
+                    // 4. Dodajemy opinie do WordPress'a
+                    var bot = new Bot(newListing.Link);
+
+                    if (placeDetails != null && placeDetails.result.reviews != null)
+                    {
+                        foreach (var review in placeDetails.result.reviews)
+                        {
+                            var rating = WordPressHelper.CalculateRating(review.rating);
+                            var author = WordPressHelper.AnonimizeCommentAuthor(review.author_name);
+                            var comment = review.text;
+
+                            bot.AddComment(rating, author, comment, company.Name);
+                        }
+
+                        Console.WriteLine($"Dodałem {placeDetails.result.reviews.Count} komentarzy");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Brak komentarzy");
                     }
 
-                    Console.WriteLine($"Dodałem {placeDetails.result.reviews.Count} komentarzy");
+                    added += 1;
                 }
-                else
+                catch (Exception ex)
                 {
-                    Console.WriteLine($"Brak komentarzy");
-                }
+                    skiped += 1;
 
-                iteration += 1;
+                    Console.WriteLine($"ERROR: {ex.Message}");
+                }
             }
+
+            Console.WriteLine($"RAPORT | DODANYCH: {added} | Z BŁĘDEM: {skiped} | WSZYSTKICH: {companies.Count}");
         }
     }
 }

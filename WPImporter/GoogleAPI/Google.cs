@@ -8,7 +8,8 @@ namespace WPImporter.GoogleAPI
     public class Google
     {
         private readonly string API_KEY;
-        private readonly string BASE_URL = "https://maps.googleapis.com/maps/api/place/";
+        private readonly string BASE_URL_PLACE = "https://maps.googleapis.com/maps/api/place/";
+        private readonly string BASE_URL_GEOCODE = "https://maps.googleapis.com/maps/api/geocode/";
 
         public Google(string apiKey)
         {
@@ -17,7 +18,7 @@ namespace WPImporter.GoogleAPI
 
         public string? GetPlaceIdBasic(PlaceSearch placeSearch)
         {
-            string url = BASE_URL + "textsearch/json?query=" + placeSearch.GetSearchQuery() + "&language=pl&type=establishment&key=" + API_KEY;
+            string url = BASE_URL_PLACE + "textsearch/json?query=" + placeSearch.GetSearchQuery() + "&language=pl&type=establishment&key=" + API_KEY;
 
             var response = GetResponse(url);
 
@@ -33,7 +34,7 @@ namespace WPImporter.GoogleAPI
 
         public string? GetPlaceIdAdvanced(PlaceSearch placeSearch)
         {
-            string url = BASE_URL + "textsearch/json?query=" + placeSearch.GetSearchQuery() + "&language=pl&type=establishment&key=" + API_KEY;
+            string url = BASE_URL_PLACE + "textsearch/json?query=" + placeSearch.GetSearchQuery() + "&language=pl&type=establishment&key=" + API_KEY;
 
             var response = GetResponse(url);
 
@@ -55,9 +56,25 @@ namespace WPImporter.GoogleAPI
             return null;
         }
 
+        public Geometry GetPlaceCordinates(PlaceSearch placeSearch)
+        {
+            string url = $"{BASE_URL_GEOCODE}json?address={placeSearch.GetAddress()}&key={API_KEY}";
+
+            var response = GetResponse(url);
+
+            var placeBasic = JsonConvert.DeserializeObject<Place>(response);
+            
+            if (placeBasic?.status == "OK")
+            {
+                return placeBasic.results.First().geometry;
+            }
+
+            return null;
+        }
+
         public PlaceDetails GetPlaceDetails(string placeId)
         {
-            string url = BASE_URL + "details/json?place_id=" + placeId + "&language=pl&key=" + API_KEY;
+            string url = BASE_URL_PLACE + "details/json?place_id=" + placeId + "&language=pl&key=" + API_KEY;
 
             var response = GetResponse(url);
 

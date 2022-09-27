@@ -22,7 +22,6 @@ namespace WPImporter.BotWP
 
         public void AddComment(long rating, string author, string comment, string companyName)
         {
-            // TODO: w try catcha to zapakować
             var options = new ChromeOptions();
 
             options.AddArgument("--headless");
@@ -30,16 +29,25 @@ namespace WPImporter.BotWP
 
             using var driver = new ChromeDriver(options);
 
-            driver.Navigate().GoToUrl(_URL);
-
-            Thread.Sleep(3000);
             try
             {
+                driver.Navigate().GoToUrl(_URL);
+                
+                Thread.Sleep(3000);
+
                 var authorElement = driver.FindElement(By.Id("author"));
                 authorElement.SendKeys(author);
 
                 var commentElement = driver.FindElement(By.Id("comment"));
-                commentElement.SendKeys($"{comment} - opinia pobrana z Google wizytówki firmy {companyName}");
+
+                if (!string.IsNullOrEmpty(comment))
+                {
+                    commentElement.SendKeys($"{comment} - opinia pobrana z Google wizytówki firmy: {companyName.ToLower()}");
+                }
+                else
+                {
+                    commentElement.SendKeys($"Opinia pobrana z Google wizytówki firmy: {companyName.ToLower()}");
+                }
 
                 foreach (var category in _ratingCategories)
                 {
@@ -58,7 +66,7 @@ namespace WPImporter.BotWP
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Błąd w dowaniu komentarza");
+                Console.WriteLine("Błąd w dowaniu komentarza", ex);
             }
         }
     }
