@@ -1,4 +1,4 @@
-Komenda do wyłączenia œledzenia pliku appsettings.json:
+Komenda do wyłączenia śledzenia pliku appsettings.json:
 
 git update-index --assume-unchanged .\appsettings.json
 
